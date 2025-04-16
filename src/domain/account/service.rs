@@ -15,7 +15,7 @@ pub enum PersistenceError {
 
 #[async_trait::async_trait]
 pub trait PersistenceRepo: Send + Sync {
-    async fn save_link(&self, link: Link, ctx: TrxContext) -> Result<Link, PersistenceError>;
+    async fn save_link(&self, link: Link, ctx: TrxContext) -> Result<(), PersistenceError>;
 
     async fn next_link_id(&self, ctx: TrxContext) -> Result<LinkId, PersistenceError>;
     async fn find_link_by_id(&self, link_id: LinkId, ctx: TrxContext) -> Result<Option<Link>, PersistenceError>;
@@ -54,13 +54,13 @@ where
     pub async fn create_link(
         &self, 
         user_id: &UserId,
-        value: String
+        redirect_url: String
     ) -> Result<LinkId, AccountError> {
         let link: Link = self
         .trx_factory
         .begin(async move |ctx| -> Result<Link, AccountError> {
             let link_id = self.persistence_repo.next_link_id(ctx.clone()).await?;
-            let link = Link::new(link_id, *user_id, value);
+            let link = Link::new(link_id, *user_id, redirect_url);
             self.persistence_repo
                 .save_link(link.clone(), ctx.clone())
                 .await?;
