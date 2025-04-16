@@ -23,7 +23,7 @@ pub trait PersistenceRepo: Send + Sync {
 
 
 #[derive(thiserror::Error, Debug)]
-pub enum AccountError {
+pub enum LinkManagerError {
     #[error("trx factory error: {0}")]
     TrxFactoryError(#[from] TrxFactoryError),
     #[error("persistence error: {0}")]
@@ -35,12 +35,12 @@ pub enum AccountError {
     LinkNotOwnedByUser(LinkId, UserId),
 }
 
-pub struct AccountService<P, T> {
+pub struct LinkManagerService<P, T> {
     persistence_repo: P,
     trx_factory: T,
 }
 
-impl<P, T> AccountService<P, T>
+impl<P, T> LinkManagerService<P, T>
 where
     P: PersistenceRepo,
     T: TrxFactory,
@@ -55,10 +55,10 @@ where
         &self, 
         user_id: &UserId,
         redirect_url: String
-    ) -> Result<LinkId, AccountError> {
+    ) -> Result<LinkId, LinkManagerError> {
         let link: Link = self
         .trx_factory
-        .begin(async move |ctx| -> Result<Link, AccountError> {
+        .begin(async move |ctx| -> Result<Link, LinkManagerError> {
             let link_id = self.persistence_repo.next_link_id(ctx.clone()).await?;
             let link = Link::new(link_id, *user_id, redirect_url);
             self.persistence_repo
@@ -75,15 +75,15 @@ where
     pub async fn view_link(
         &self, 
         link_id: &LinkId,
-    ) -> Result<(), AccountError> {
+    ) -> Result<(), LinkManagerError> {
         self
         .trx_factory
-        .begin(async move |ctx| -> Result<(), AccountError> {
+        .begin(async move |ctx| -> Result<(), LinkManagerError> {
             let mut existing_link = self
                 .persistence_repo
                 .find_link_by_id(link_id.clone(), ctx.clone())
                 .await?
-                .ok_or(AccountError::LinkNotFound(link_id.clone()))?;
+                .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
 
 
             existing_link.increment_views();
@@ -98,12 +98,12 @@ where
         Ok(())
     }
 
-    pub async fn get_link_views(&self, link_id: &LinkId) -> Result<i64, AccountError> {
+    pub async fn get_link_views(&self, link_id: &LinkId) -> Result<i64, LinkManagerError> {
         let link = self
         .persistence_repo
         .find_link_by_id(link_id.clone(), TrxContext::Empty)
         .await?
-        .ok_or(AccountError::LinkNotFound(link_id.clone()))?;
+        .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
 
         Ok(link.views)
     }

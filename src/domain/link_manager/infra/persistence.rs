@@ -1,15 +1,15 @@
 use solar::trx_factory::{TrxContext, SqlxTrxFactory};
 use eyre::Context;
 
-use crate::domain::account::entity::link::{Link, LinkId};
-use crate::domain::account::service::{PersistenceError, PersistenceRepo};
+use crate::domain::link_manager::entity::link::{Link, LinkId};
+use crate::domain::link_manager::service::{PersistenceError, PersistenceRepo};
 use crate::domain::auth::entity::user::UserId;
 
-pub struct AccountPersistenceRepo {
+pub struct LinkManagerPersistenceRepo {
     trx_factory: SqlxTrxFactory,
 }
 
-impl AccountPersistenceRepo {
+impl LinkManagerPersistenceRepo {
     pub fn new(trx_factory: SqlxTrxFactory) -> Self {
         Self { trx_factory }
     }
@@ -60,7 +60,7 @@ impl From<LinkDto> for Link{
 
 
 #[async_trait::async_trait]
-impl PersistenceRepo for AccountPersistenceRepo {
+impl PersistenceRepo for LinkManagerPersistenceRepo {
     async fn save_link(&self, link: Link, ctx: TrxContext) -> Result<(), PersistenceError>{
         let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
         let (trx, _) = extract_or_create_trx;
