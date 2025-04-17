@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::{ValidationError, ValidationErrors};
-
 
 #[derive(thiserror::Error, Debug)]
 pub enum UserError {
@@ -12,7 +12,7 @@ pub enum UserError {
 }
 
 #[readonly::make]
-#[derive(Debug, Clone, PartialEq, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct UserId {
     pub value: Uuid,
 }

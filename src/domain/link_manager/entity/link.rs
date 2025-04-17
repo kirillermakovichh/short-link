@@ -1,10 +1,11 @@
 use nanoid::nanoid;
 use std::fmt::Display;
+use utoipa::ToSchema;
 
 use crate::domain::auth::entity::user::UserId;
 
 #[readonly::make]
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct LinkId {
     pub value: String,
 }
@@ -17,7 +18,7 @@ impl Display for LinkId {
 
 impl LinkId {
     pub fn generate() -> Self {
-        Self{ value: nanoid!(4)}
+        Self { value: nanoid!(4) }
     }
 
     pub fn from_string(id: String) -> Self {

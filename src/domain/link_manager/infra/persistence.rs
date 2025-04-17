@@ -1,9 +1,9 @@
-use solar::trx_factory::{TrxContext, SqlxTrxFactory};
 use eyre::Context;
+use solar::trx_factory::{SqlxTrxFactory, TrxContext};
 
+use crate::domain::auth::entity::user::UserId;
 use crate::domain::link_manager::entity::link::{Link, LinkId};
 use crate::domain::link_manager::service::{PersistenceError, PersistenceRepo};
-use crate::domain::auth::entity::user::UserId;
 
 pub struct LinkManagerPersistenceRepo {
     trx_factory: SqlxTrxFactory,
@@ -25,43 +25,39 @@ pub struct LinkDto {
     pub last_view: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-
-impl From<Link> for LinkDto{
-    fn from(link: Link) -> Self{
-        Self{
+impl From<Link> for LinkDto {
+    fn from(link: Link) -> Self {
+        Self {
             id: link.id.value.to_string(),
             user_id: link.user_id.clone().to_string(),
             redirect_url: link.redirect_url.clone(),
 
             views: link.views,
             created_at: link.created_at,
-            last_view: link.last_view
+            last_view: link.last_view,
         }
     }
 }
 
-impl From<LinkDto> for Link{
-    fn from(link: LinkDto) -> Self{
+impl From<LinkDto> for Link {
+    fn from(link: LinkDto) -> Self {
         let id = LinkId::from_string(link.id);
-        let user_id = UserId::try_from(link.user_id)
-            .expect("Invalid user_id in LinkDto");
+        let user_id = UserId::try_from(link.user_id).expect("Invalid user_id in LinkDto");
 
-
-            Link::from_parts(
-                id,
-                user_id,
-                link.redirect_url,
-                link.views,
-                link.created_at,
-                link.last_view,
-            )
+        Link::from_parts(
+            id,
+            user_id,
+            link.redirect_url,
+            link.views,
+            link.created_at,
+            link.last_view,
+        )
     }
 }
 
-
 #[async_trait::async_trait]
 impl PersistenceRepo for LinkManagerPersistenceRepo {
-    async fn save_link(&self, link: Link, ctx: TrxContext) -> Result<(), PersistenceError>{
+    async fn save_link(&self, link: Link, ctx: TrxContext) -> Result<(), PersistenceError> {
         let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
         let (trx, _) = extract_or_create_trx;
         let mut trx = trx.lock().await;
@@ -91,11 +87,16 @@ impl PersistenceRepo for LinkManagerPersistenceRepo {
         Ok(())
     }
 
-    async fn next_link_id(&self, ctx: TrxContext) -> Result<LinkId, PersistenceError>{
-        let _= ctx;
+    async fn next_link_id(&self, ctx: TrxContext) -> Result<LinkId, PersistenceError> {
+        let _ = ctx;
         Ok(LinkId::generate())
     }
-    async fn find_link_by_id(&self, link_id: LinkId, ctx: TrxContext) -> Result<Option<Link>, PersistenceError>{
+
+    async fn find_link_by_id(
+        &self,
+        link_id: LinkId,
+        ctx: TrxContext,
+    ) -> Result<Option<Link>, PersistenceError> {
         let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
         let (trx, _) = extract_or_create_trx;
         let mut trx = trx.lock().await;

@@ -1,10 +1,23 @@
 pub mod domain;
 
-use axum::{response::IntoResponse, routing::{get, post}, Router};
-use solar::trx_factory::SqlxTrxFactory;
-use eyre::Context;
-// use std::sync::Arc;
+use std::sync::Arc;
 
+use axum::{
+    Router,
+    routing::{get, post},
+};
+use domain::link_manager::{
+    infra::persistence::LinkManagerPersistenceRepo,
+    service::LinkManagerService,
+    transport::http::{
+        create_link_post_handler, get_link_views_get_handler, view_link_get_handler,
+    },
+};
+use eyre::Context;
+use solar::trx_factory::SqlxTrxFactory;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+// use std::sync::Arc;
 
 // use domain::auth::entity::user::UserId;
 // use crate::domain::account::infra::persistence::AccountPersistenceRepo;
@@ -13,8 +26,8 @@ use eyre::Context;
 #[tokio::main]
 async fn main() {
     let pool = sqlx::PgPool::connect("postgres://postgres:password@localhost:5432/short-link")
-    .await
-    .expect("failed to connect to db");
+        .await
+        .expect("failed to connect to db");
 
     let trx_factory = SqlxTrxFactory::new(pool);
     sqlx::migrate!("./migrations")
@@ -23,36 +36,46 @@ async fn main() {
         .context("failed to run migrations")
         .unwrap();
 
-        // let account_persistence_repo = AccountPersistenceRepo::new(trx_factory.clone());
+    let link_manager_persistence_repo = LinkManagerPersistenceRepo::new(trx_factory.clone());
 
-        // let account_service = Arc::new(AccountService::new(
-        //     account_persistence_repo,
-        //     trx_factory.clone(),
-        // ));
+    let link_manager_service = Arc::new(LinkManagerService::new(
+        link_manager_persistence_repo,
+        trx_factory.clone(),
+    ));
 
-        // let link_id = account_service.create_link(&UserId::generate(), "asdasd".to_string()).await.expect("failed to create link");
-        // print!("link id: {link_id:?}");
-        // account_service.view_link(&link_id).await.expect("failed to view link");
-        // let views = account_service.get_link_views(&link_id).await.expect("failed to get link views");
-        // println!("views: {views:?}");
+    let app_state = AppState {
+        link_manager_service,
+    };
 
     let addr = "127.0.0.1:3000";
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("failed to bind to address");
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("failed to bind to address");
     println!("Server running on: {addr:?}");
 
-    axum::serve(listener, router()).await.unwrap();
+    axum::serve(listener, router(app_state)).await.unwrap();
 }
 
-fn router() -> Router {
+#[derive(Clone)]
+pub struct AppState {
+    link_manager_service: Arc<LinkManagerService<LinkManagerPersistenceRepo, SqlxTrxFactory>>,
+}
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        crate::domain::link_manager::transport::http::view_link_get_handler,
+        crate::domain::link_manager::transport::http::get_link_views_get_handler,
+        crate::domain::link_manager::transport::http::create_link_post_handler,
+    ),
+    tags((name = "short-link", description = "API Documentation")))]
+struct ApiDoc {}
+
+fn router(app_state: AppState) -> Router {
     Router::new()
-    .route("/", get(hello_world))
-    .route("/user", post(post_user))
-}
-
-async fn hello_world() -> &'static str {
-    "Hello, World, from axum!"
-}
-
-async fn post_user() -> impl IntoResponse {
-    "asasdd"
+        .route("/create-link", post(create_link_post_handler))
+        .route("/view/{link-id}", get(view_link_get_handler))
+        .route("/get-views/{link-id}", get(get_link_views_get_handler))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
+        .with_state(app_state)
 }
