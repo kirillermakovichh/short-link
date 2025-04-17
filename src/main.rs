@@ -4,6 +4,9 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    extract::Request,
+    middleware::{Next, from_fn},
+    response::IntoResponse,
     routing::{get, post},
 };
 use domain::link_manager::{
@@ -73,9 +76,20 @@ struct ApiDoc {}
 
 fn router(app_state: AppState) -> Router {
     Router::new()
+        .route("/", get(console).route_layer(from_fn(middleware)))
         .route("/create-link", post(create_link_post_handler))
         .route("/view/{link-id}", get(view_link_get_handler))
         .route("/get-views/{link-id}", get(get_link_views_get_handler))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .with_state(app_state)
+}
+
+async fn console() -> String {
+    return ("HELLO qweWORLD").into();
+}
+
+async fn middleware(req: Request, next: Next) -> impl IntoResponse {
+    println!("Hello fromqwemiddleware");
+
+    next.run(req).await
 }

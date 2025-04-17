@@ -57,12 +57,13 @@ where
         &self,
         user_id: &UserId,
         redirect_url: String,
+        label: String,
     ) -> Result<LinkId, LinkManagerError> {
         let link: Link = self
             .trx_factory
             .begin(async move |ctx| -> Result<Link, LinkManagerError> {
                 let link_id = self.persistence_repo.next_link_id(ctx.clone()).await?;
-                let link = Link::new(link_id, *user_id, redirect_url);
+                let link = Link::new(link_id, *user_id, redirect_url, label);
                 self.persistence_repo
                     .save_link(link.clone(), ctx.clone())
                     .await?;

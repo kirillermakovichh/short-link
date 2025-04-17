@@ -20,6 +20,7 @@ pub struct LinkDto {
     pub id: String,
     pub user_id: String,
     pub redirect_url: String,
+    pub label: String,
     pub views: i64,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_view: Option<chrono::DateTime<chrono::Utc>>,
@@ -31,6 +32,7 @@ impl From<Link> for LinkDto {
             id: link.id.value.to_string(),
             user_id: link.user_id.clone().to_string(),
             redirect_url: link.redirect_url.clone(),
+            label: link.label.clone(),
 
             views: link.views,
             created_at: link.created_at,
@@ -48,6 +50,7 @@ impl From<LinkDto> for Link {
             id,
             user_id,
             link.redirect_url,
+            link.label,
             link.views,
             link.created_at,
             link.last_view,
@@ -70,12 +73,13 @@ impl PersistenceRepo for LinkManagerPersistenceRepo {
         let link_dto = LinkDto::from(link.clone());
         sqlx::query!(
             r#"
-            INSERT INTO links (id, user_id, redirect_url, views, created_at, last_view)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO links (id, user_id, redirect_url, label, views, created_at, last_view)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
             link_dto.id,
             link_dto.user_id,
             link_dto.redirect_url,
+            link_dto.label,
             link_dto.views,
             link_dto.created_at,
             link_dto.last_view
@@ -109,7 +113,7 @@ impl PersistenceRepo for LinkManagerPersistenceRepo {
         let link_dto = sqlx::query_as!(
             LinkDto,
             r#"
-            SELECT id, user_id, redirect_url, views, created_at, last_view
+            SELECT id, user_id, redirect_url, label, views, created_at, last_view
             FROM links
             WHERE id = $1
             "#,

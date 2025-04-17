@@ -32,6 +32,7 @@ pub struct Link {
     pub id: LinkId,
     pub user_id: UserId,
     pub redirect_url: String,
+    pub label: String,
 
     pub views: i64,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -39,11 +40,12 @@ pub struct Link {
 }
 
 impl Link {
-    pub fn new(id: LinkId, user_id: UserId, redirect_url: String) -> Self {
+    pub fn new(id: LinkId, user_id: UserId, redirect_url: String, label: String) -> Self {
         Self {
             id,
             user_id,
             redirect_url,
+            label,
             views: 0,
             created_at: chrono::Utc::now(),
             last_view: None,
@@ -59,6 +61,7 @@ impl Link {
         id: LinkId,
         user_id: UserId,
         redirect_url: String,
+        label: String,
         views: i64,
         created_at: chrono::DateTime<chrono::Utc>,
         last_view: Option<chrono::DateTime<chrono::Utc>>,
@@ -67,6 +70,7 @@ impl Link {
             id,
             user_id,
             redirect_url,
+            label,
             views,
             created_at,
             last_view,
