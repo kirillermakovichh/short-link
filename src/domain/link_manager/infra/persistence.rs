@@ -73,6 +73,12 @@ impl PersistenceRepo for LinkManagerPersistenceRepo {
             r#"
             INSERT INTO links (id, user_id, redirect_url, label, views, created_at, last_view)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (id) DO UPDATE SET
+            redirect_url = EXCLUDED.redirect_url,
+            label = EXCLUDED.label,
+            views = EXCLUDED.views,
+            last_view = EXCLUDED.last_view
+            
             "#,
             link_dto.id,
             link_dto.user_id,
