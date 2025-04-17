@@ -19,7 +19,7 @@ pub trait PersistenceRepo: Send + Sync {
         email: String,
         password: String,
         ctx: TrxContext,
-    ) -> Result<User, PersistenceError>;
+    ) -> Result<Option<User>, PersistenceError>;
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -28,8 +28,8 @@ pub enum AuthError {
     TrxFactoryError(#[from] TrxFactoryError),
     #[error("persistence error: {0}")]
     PersistenceError(#[from] PersistenceError),
-    #[error("incorrect email or password: {0}")]
-    AuthenticationError(String),
+    #[error("incorrect email or password")]
+    IncorrectEmailOrPassword,
 }
 
 pub struct AuthService<P, T> {
@@ -75,12 +75,10 @@ where
         let user = self
             .trx_factory
             .begin(async move |ctx| -> Result<User, AuthError> {
-                let user = self
-                    .persistence_repo
+                self.persistence_repo
                     .login(email, password, ctx.clone())
-                    .await?;
-
-                Ok(user)
+                    .await?
+                    .ok_or(AuthError::IncorrectEmailOrPassword)
             })
             .await?;
 

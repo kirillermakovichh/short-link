@@ -7,6 +7,8 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub password: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl User {
@@ -16,6 +18,8 @@ impl User {
             name,
             email,
             password,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
         }
     }
 }
