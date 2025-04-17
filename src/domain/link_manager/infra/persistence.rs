@@ -1,7 +1,6 @@
 use eyre::Context;
 use solar::trx_factory::{SqlxTrxFactory, TrxContext};
 
-use crate::domain::auth::entity::user::UserId;
 use crate::domain::link_manager::entity::link::{Link, LinkId};
 use crate::domain::link_manager::service::{PersistenceError, PersistenceRepo};
 
@@ -18,7 +17,7 @@ impl LinkManagerPersistenceRepo {
 #[derive(Debug)]
 pub struct LinkDto {
     pub id: String,
-    pub user_id: String,
+    pub user_id: i32,
     pub redirect_url: String,
     pub label: String,
     pub views: i64,
@@ -30,7 +29,7 @@ impl From<Link> for LinkDto {
     fn from(link: Link) -> Self {
         Self {
             id: link.id.value.to_string(),
-            user_id: link.user_id.clone().to_string(),
+            user_id: link.user_id,
             redirect_url: link.redirect_url.clone(),
             label: link.label.clone(),
 
@@ -44,11 +43,10 @@ impl From<Link> for LinkDto {
 impl From<LinkDto> for Link {
     fn from(link: LinkDto) -> Self {
         let id = LinkId::from_string(link.id);
-        let user_id = UserId::try_from(link.user_id).expect("Invalid user_id in LinkDto");
 
         Link::from_parts(
             id,
-            user_id,
+            link.user_id,
             link.redirect_url,
             link.label,
             link.views,

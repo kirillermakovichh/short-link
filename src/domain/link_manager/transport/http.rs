@@ -3,7 +3,7 @@ use axum::{
 };
 use utoipa::ToSchema;
 
-use crate::{domain::{auth::entity::user::UserId, link_manager::{entity::link::LinkId, service::LinkManagerError}}, AppState};
+use crate::{domain::link_manager::{entity::link::LinkId, service::LinkManagerError}, AppState};
 
 /// View short link 
 #[utoipa::path(
@@ -66,7 +66,7 @@ pub async fn get_link_views_get_handler(
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateLinkRequest{
     // TODO: get from middleware
-    user_id: UserId,
+    user_id: i32,
     redirected_url: String,
     label: String
 }
@@ -85,7 +85,7 @@ pub async fn create_link_post_handler(
     State(state): State<AppState>,
     Json(payload): Json<CreateLinkRequest>, 
 ) -> Result<Json<LinkId>, StatusCode> {
-    match state.link_manager_service.create_link(&payload.user_id, payload. redirected_url, payload.label).await{
+    match state.link_manager_service.create_link(payload.user_id, payload. redirected_url, payload.label).await{
         Ok(link_id) => 
             Ok(Json(link_id)),
         Err(_) => 

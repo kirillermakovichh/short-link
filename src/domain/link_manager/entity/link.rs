@@ -2,8 +2,6 @@ use nanoid::nanoid;
 use std::fmt::Display;
 use utoipa::ToSchema;
 
-use crate::domain::auth::entity::user::UserId;
-
 #[readonly::make]
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct LinkId {
@@ -30,7 +28,7 @@ impl LinkId {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Link {
     pub id: LinkId,
-    pub user_id: UserId,
+    pub user_id: i32,
     pub redirect_url: String,
     pub label: String,
 
@@ -40,7 +38,7 @@ pub struct Link {
 }
 
 impl Link {
-    pub fn new(id: LinkId, user_id: UserId, redirect_url: String, label: String) -> Self {
+    pub fn new(id: LinkId, user_id: i32, redirect_url: String, label: String) -> Self {
         Self {
             id,
             user_id,
@@ -59,7 +57,7 @@ impl Link {
 
     pub fn from_parts(
         id: LinkId,
-        user_id: UserId,
+        user_id: i32,
         redirect_url: String,
         label: String,
         views: i64,

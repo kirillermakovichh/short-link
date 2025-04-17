@@ -1,7 +1,6 @@
 use solar::trx_factory::{TrxContext, TrxFactory, TrxFactoryError};
 
 use super::entity::link::{Link, LinkId};
-use crate::domain::auth::entity::user::UserId;
 
 #[derive(thiserror::Error, Debug)]
 pub enum PersistenceError {
@@ -33,7 +32,7 @@ pub enum LinkManagerError {
     #[error("link not found: {0}")]
     LinkNotFound(LinkId),
     #[error("link not owned by user: {0}")]
-    LinkNotOwnedByUser(LinkId, UserId),
+    LinkNotOwnedByUser(LinkId, i32),
 }
 
 pub struct LinkManagerService<P, T> {
@@ -55,7 +54,7 @@ where
 
     pub async fn create_link(
         &self,
-        user_id: &UserId,
+        user_id: i32,
         redirect_url: String,
         label: String,
     ) -> Result<LinkId, LinkManagerError> {
@@ -63,7 +62,7 @@ where
             .trx_factory
             .begin(async move |ctx| -> Result<Link, LinkManagerError> {
                 let link_id = self.persistence_repo.next_link_id(ctx.clone()).await?;
-                let link = Link::new(link_id, *user_id, redirect_url, label);
+                let link = Link::new(link_id, user_id, redirect_url, label);
                 self.persistence_repo
                     .save_link(link.clone(), ctx.clone())
                     .await?;
