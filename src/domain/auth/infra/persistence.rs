@@ -81,4 +81,30 @@ impl PersistenceRepo for AuthPersistenceRepo {
 
         return Ok(user);
     }
+
+    async fn get_user_by_id(
+        &self,
+        user_id: i32,
+        ctx: TrxContext,
+    ) -> Result<Option<User>, PersistenceError> {
+        let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
+        let (trx, _) = extract_or_create_trx;
+        let mut trx = trx.lock().await;
+        let Some(trx) = trx.as_mut() else {
+            return Err(PersistenceError::InternalError(eyre::eyre!(
+                "failed to get sqlx transaction"
+            )));
+        };
+
+        let user_dto = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id)
+            .fetch_optional(&mut **trx)
+            .await
+            .context("failed to find user by id")?;
+
+        if let Some(user_dto) = user_dto {
+            return Ok(Some(User::from(user_dto)));
+        }
+
+        Ok(None)
+    }
 }

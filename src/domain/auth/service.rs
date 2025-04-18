@@ -14,6 +14,12 @@ pub enum PersistenceError {
 pub trait PersistenceRepo: Send + Sync {
     async fn save_user(&self, user: User, ctx: TrxContext) -> Result<i32, PersistenceError>;
 
+    async fn get_user_by_id(
+        &self,
+        user_id: i32,
+        ctx: TrxContext,
+    ) -> Result<Option<User>, PersistenceError>;
+
     async fn login(
         &self,
         email: String,
@@ -30,6 +36,8 @@ pub enum AuthError {
     PersistenceError(#[from] PersistenceError),
     #[error("incorrect email or password")]
     IncorrectEmailOrPassword,
+    #[error("user not found: {0:?}")]
+    UserNotFound(i32),
 }
 
 pub struct AuthService<P, T> {
@@ -79,6 +87,20 @@ where
                     .login(email, password, ctx.clone())
                     .await?
                     .ok_or(AuthError::IncorrectEmailOrPassword)
+            })
+            .await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_info(&self, user_id: i32) -> Result<User, AuthError> {
+        let user = self
+            .trx_factory
+            .begin(async move |ctx| -> Result<User, AuthError> {
+                self.persistence_repo
+                    .get_user_by_id(user_id, ctx.clone())
+                    .await?
+                    .ok_or(AuthError::UserNotFound(user_id))
             })
             .await?;
 

@@ -1,13 +1,12 @@
 pub mod domain;
 pub mod tools;
+pub mod transport;
 
 use std::sync::Arc;
 
 use axum::{
     Router,
-    extract::Request,
-    middleware::{Next, from_fn},
-    response::IntoResponse,
+    middleware::from_fn_with_state,
     routing::{get, post},
 };
 use domain::{
@@ -26,14 +25,9 @@ use domain::{
 };
 use eyre::Context;
 use solar::trx_factory::SqlxTrxFactory;
-use tower_http::cors::{Any, CorsLayer};
+use transport::http::auth::user_middleware;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-// use std::sync::Arc;
-
-// use domain::auth::entity::user::UserId;
-// use crate::domain::account::infra::persistence::AccountPersistenceRepo;
-// use crate::domain::account::service::AccountService;
 
 #[tokio::main]
 async fn main() {
@@ -94,29 +88,24 @@ pub struct AppState {
 struct ApiDoc {}
 
 fn router(app_state: AppState) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
     Router::new()
-        .route("/", get(console).route_layer(from_fn(middleware)))
         .route("/login", post(login_post_handler))
         .route("/register", post(register_post_handler))
-        .route("/create-link", post(create_link_post_handler))
-        .route("/view/{link-id}", get(view_link_get_handler))
-        .route("/get-views/{link-id}", get(get_link_views_get_handler))
+        .route(
+            "/create-link",
+            post(create_link_post_handler)
+                .route_layer(from_fn_with_state(app_state.clone(), user_middleware)),
+        )
+        .route(
+            "/view/{link-id}",
+            get(view_link_get_handler)
+                .route_layer(from_fn_with_state(app_state.clone(), user_middleware)),
+        )
+        .route(
+            "/get-views/{link-id}",
+            get(get_link_views_get_handler)
+                .route_layer(from_fn_with_state(app_state.clone(), user_middleware)),
+        )
         .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .with_state(app_state)
-        .layer(cors)
-}
-
-async fn console() -> String {
-    return ("HELLO qweWORLD").into();
-}
-
-async fn middleware(req: Request, next: Next) -> impl IntoResponse {
-    println!("Hello fromqwemiddleware");
-
-    next.run(req).await
 }

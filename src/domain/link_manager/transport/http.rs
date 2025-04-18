@@ -1,9 +1,9 @@
 use axum::{
-    extract::{Path, State}, http::StatusCode, response:: Redirect, Json
+    extract::{Path, State}, http::StatusCode, Extension, response:: Redirect, Json
 };
 use utoipa::ToSchema;
 
-use crate::{domain::link_manager::{entity::link::LinkId, service::LinkManagerError}, AppState};
+use crate::{domain::link_manager::{entity::link::LinkId, service::LinkManagerError}, transport::http::auth::MiddlewareUserResponse, AppState};
 
 /// View short link 
 #[utoipa::path(
@@ -65,8 +65,6 @@ pub async fn get_link_views_get_handler(
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct CreateLinkRequest{
-    // TODO: get from middleware
-    user_id: i32,
     redirected_url: String,
     label: String
 }
@@ -81,11 +79,13 @@ pub struct CreateLinkRequest{
         (status = 200, description = "OK", body = LinkId),
         (status = 500, description = "Internal Server Error"),)
 )]
+
 pub async fn create_link_post_handler(
     State(state): State<AppState>,
+    Extension(middleware_user): Extension<MiddlewareUserResponse>,
     Json(payload): Json<CreateLinkRequest>, 
 ) -> Result<Json<LinkId>, StatusCode> {
-    match state.link_manager_service.create_link(payload.user_id, payload. redirected_url, payload.label).await{
+    match state.link_manager_service.create_link(middleware_user.user_id, &payload. redirected_url,  &payload.label).await{
         Ok(link_id) => 
             Ok(Json(link_id)),
         Err(_) => 
