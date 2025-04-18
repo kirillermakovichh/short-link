@@ -1,6 +1,6 @@
 use solar::trx_factory::{TrxContext, TrxFactory, TrxFactoryError};
 
-use super::entity::user::User;
+use crate::domain::auth::entity::user::User;
 
 #[derive(thiserror::Error, Debug)]
 pub enum PersistenceError {
@@ -14,32 +14,29 @@ pub enum PersistenceError {
 pub trait PersistenceRepo: Send + Sync {
     async fn save_user(&self, user: User, ctx: TrxContext) -> Result<i32, PersistenceError>;
 
-    async fn login(
+    async fn get_user_by_id(
         &self,
-        email: String,
-        password: String,
+        user_id: i32,
         ctx: TrxContext,
     ) -> Result<Option<User>, PersistenceError>;
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum AuthError {
+pub enum UserManagerError {
     #[error("trx factory error: {0}")]
     TrxFactoryError(#[from] TrxFactoryError),
     #[error("persistence error: {0}")]
     PersistenceError(#[from] PersistenceError),
-    #[error("incorrect email or password")]
-    IncorrectEmailOrPassword,
-    #[error("user not found: {0:?}")]
+    #[error("user not found: {0}")]
     UserNotFound(i32),
 }
 
-pub struct AuthService<P, T> {
+pub struct UserManagerService<P, T> {
     persistence_repo: P,
     trx_factory: T,
 }
 
-impl<P, T> AuthService<P, T>
+impl<P, T> UserManagerService<P, T>
 where
     P: PersistenceRepo,
     T: TrxFactory,
@@ -51,36 +48,36 @@ where
         }
     }
 
-    pub async fn register(
-        &self,
-        name: String,
-        email: String,
-        password: String,
-    ) -> Result<i32, AuthError> {
-        let user_id = self
-            .trx_factory
-            .begin(async move |ctx| -> Result<i32, AuthError> {
-                let user = User::new(name, email, password);
-                let user_id = self
+    pub async fn change_name(&self, user_id: i32, name: String) -> Result<(), UserManagerError> {
+        self.trx_factory
+            .begin(async move |ctx| -> Result<(), UserManagerError> {
+                let mut user = self
                     .persistence_repo
+                    .get_user_by_id(user_id, ctx.clone())
+                    .await?
+                    .ok_or(UserManagerError::UserNotFound(user_id))?;
+
+                user.name = name;
+
+                self.persistence_repo
                     .save_user(user.clone(), ctx.clone())
                     .await?;
 
-                Ok(user_id)
+                Ok(())
             })
             .await?;
 
-        Ok(user_id)
+        Ok(())
     }
 
-    pub async fn login(&self, email: String, password: String) -> Result<User, AuthError> {
+    pub async fn get_user_info(&self, user_id: i32) -> Result<User, UserManagerError> {
         let user = self
             .trx_factory
-            .begin(async move |ctx| -> Result<User, AuthError> {
+            .begin(async move |ctx| -> Result<User, UserManagerError> {
                 self.persistence_repo
-                    .login(email, password, ctx.clone())
+                    .get_user_by_id(user_id, ctx.clone())
                     .await?
-                    .ok_or(AuthError::IncorrectEmailOrPassword)
+                    .ok_or(UserManagerError::UserNotFound(user_id))
             })
             .await?;
 

@@ -10,6 +10,9 @@ use crate::{
         link_manager::{
             infra::persistence::LinkManagerPersistenceRepo, service::LinkManagerService,
         },
+        user_manager::{
+            infra::persistence::UserManagerPersistenceRepo, service::UserManagerService,
+        },
     },
 };
 
@@ -19,6 +22,7 @@ pub struct Container {
     pub trx_factory: SqlxTrxFactory,
     pub auth_service: Arc<AuthService<AuthPersistenceRepo, SqlxTrxFactory>>,
     pub link_manager_service: Arc<LinkManagerService<LinkManagerPersistenceRepo, SqlxTrxFactory>>,
+    pub user_manager_service: Arc<UserManagerService<UserManagerPersistenceRepo, SqlxTrxFactory>>,
     pub server_address: String,
 }
 
@@ -47,12 +51,19 @@ pub async fn build_container() -> Arc<Container> {
         trx_factory.clone(),
     ));
 
+    let user_manager_persistence_repo = UserManagerPersistenceRepo::new(trx_factory.clone());
+    let user_manager_service = Arc::new(UserManagerService::new(
+        user_manager_persistence_repo,
+        trx_factory.clone(),
+    ));
+
     Arc::new(Container {
         config,
         pool,
         trx_factory,
         auth_service,
         link_manager_service,
+        user_manager_service,
         server_address,
     })
 }

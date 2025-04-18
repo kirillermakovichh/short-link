@@ -39,7 +39,11 @@ pub async fn user_middleware(
         return (StatusCode::UNAUTHORIZED, "Token expired").into_response();
     }
 
-    let user = match state.auth_service.get_user_info(token.claims.sub).await {
+    let user = match state
+        .user_manager_service
+        .get_user_info(token.claims.sub)
+        .await
+    {
         Ok(u) => u,
         Err(_) => return (StatusCode::NOT_FOUND, "User not found").into_response(),
     };

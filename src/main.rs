@@ -13,6 +13,7 @@ use std::sync::Arc;
 use domain::{
     auth::{infra::persistence::AuthPersistenceRepo, service::AuthService},
     link_manager::{infra::persistence::LinkManagerPersistenceRepo, service::LinkManagerService},
+    user_manager::{infra::persistence::UserManagerPersistenceRepo, service::UserManagerService},
 };
 use solar::trx_factory::SqlxTrxFactory;
 
@@ -20,6 +21,7 @@ use solar::trx_factory::SqlxTrxFactory;
 pub struct AppState {
     auth_service: Arc<AuthService<AuthPersistenceRepo, SqlxTrxFactory>>,
     link_manager_service: Arc<LinkManagerService<LinkManagerPersistenceRepo, SqlxTrxFactory>>,
+    user_manager_service: Arc<UserManagerService<UserManagerPersistenceRepo, SqlxTrxFactory>>,
 }
 
 #[tokio::main]
@@ -31,6 +33,7 @@ async fn main() {
     let app_state = AppState {
         auth_service: container.auth_service.clone(),
         link_manager_service: container.link_manager_service.clone(),
+        user_manager_service: container.user_manager_service.clone(),
     };
 
     let router = build_router(app_state);

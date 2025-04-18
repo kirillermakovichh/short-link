@@ -2,22 +2,21 @@ use chrono::Utc;
 use eyre::Context;
 use solar::trx_factory::{SqlxTrxFactory, TrxContext};
 
-use super::super::service::{PersistenceError, PersistenceRepo};
+use crate::domain::auth::entity::user::User;
+use crate::domain::user_manager::service::{PersistenceError, PersistenceRepo};
 
-use super::super::entity::user::User;
-
-pub struct AuthPersistenceRepo {
+pub struct UserManagerPersistenceRepo {
     trx_factory: SqlxTrxFactory,
 }
 
-impl AuthPersistenceRepo {
+impl UserManagerPersistenceRepo {
     pub fn new(trx_factory: SqlxTrxFactory) -> Self {
         Self { trx_factory }
     }
 }
 
 #[async_trait::async_trait]
-impl PersistenceRepo for AuthPersistenceRepo {
+impl PersistenceRepo for UserManagerPersistenceRepo {
     async fn save_user(&self, user: User, ctx: TrxContext) -> Result<i32, PersistenceError> {
         let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
         let (trx, _) = extract_or_create_trx;
@@ -50,10 +49,9 @@ impl PersistenceRepo for AuthPersistenceRepo {
         Ok(user.id)
     }
 
-    async fn login(
+    async fn get_user_by_id(
         &self,
-        email: String,
-        password: String,
+        user_id: i32,
         ctx: TrxContext,
     ) -> Result<Option<User>, PersistenceError> {
         let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
@@ -65,20 +63,15 @@ impl PersistenceRepo for AuthPersistenceRepo {
             )));
         };
 
-        let user = sqlx::query_as!(
-            User,
-            r#"
-            SELECT * from users
-            WHERE email = $1
-            AND password = $2
-            "#,
-            email,
-            password
-        )
-        .fetch_optional(&mut **trx)
-        .await
-        .context("failed to find user with email and password")?;
+        let user_dto = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id)
+            .fetch_optional(&mut **trx)
+            .await
+            .context("failed to find user by id")?;
 
-        return Ok(user);
+        if let Some(user_dto) = user_dto {
+            return Ok(Some(User::from(user_dto)));
+        }
+
+        Ok(None)
     }
 }
