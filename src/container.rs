@@ -1,5 +1,6 @@
 use eyre::Context;
 use solar::trx_factory::SqlxTrxFactory;
+use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 
 use crate::{
@@ -14,6 +15,7 @@ use crate::{
 
 pub struct Container {
     pub config: ConfigSettings,
+    pub pool: Pool<Postgres>,
     pub trx_factory: SqlxTrxFactory,
     pub auth_service: Arc<AuthService<AuthPersistenceRepo, SqlxTrxFactory>>,
     pub link_manager_service: Arc<LinkManagerService<LinkManagerPersistenceRepo, SqlxTrxFactory>>,
@@ -29,7 +31,7 @@ pub async fn build_container() -> Arc<Container> {
         .await
         .expect("failed to connect to db");
 
-    let trx_factory = SqlxTrxFactory::new(pool);
+    let trx_factory = SqlxTrxFactory::new(pool.clone());
     sqlx::migrate!("./migrations")
         .run(trx_factory.pool())
         .await
@@ -47,6 +49,7 @@ pub async fn build_container() -> Arc<Container> {
 
     Arc::new(Container {
         config,
+        pool,
         trx_factory,
         auth_service,
         link_manager_service,

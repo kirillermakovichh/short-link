@@ -24,7 +24,7 @@ pub async fn view_link_get_handler(
 ) -> Result<Redirect, StatusCode> {
     match state.link_manager_service.view_link(&LinkId::from_string(link_id)).await{
         Ok(link) => 
-            Ok(Redirect::to(&link.redirect_url)),
+             Ok(Redirect::to(&link.redirect_url)),
         Err(LinkManagerError::LinkNotFound(_)) => 
             Err(
                 StatusCode::NOT_FOUND,
