@@ -50,7 +50,7 @@ pub struct ChangeNameRequest{
         (status = 500, description = "Internal Server Error"),)
 )]
 
-pub async fn create_link_post_handler(
+pub async fn change_name_post_handler(
     State(state): State<AppState>,
     Extension(middleware_user): Extension<MiddlewareUserResponse>,
     Json(payload): Json<ChangeNameRequest>, 

@@ -102,7 +102,7 @@ impl PersistenceRepo for LinkManagerPersistenceRepo {
 
     async fn find_link_by_id(
         &self,
-        link_id: LinkId,
+        link_id: &LinkId,
         ctx: TrxContext,
     ) -> Result<Option<Link>, PersistenceError> {
         let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;

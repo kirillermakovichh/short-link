@@ -17,7 +17,7 @@ pub trait PersistenceRepo: Send + Sync {
     async fn next_link_id(&self, ctx: TrxContext) -> Result<LinkId, PersistenceError>;
     async fn find_link_by_id(
         &self,
-        link_id: LinkId,
+        link_id: &LinkId,
         ctx: TrxContext,
     ) -> Result<Option<Link>, PersistenceError>;
 }
@@ -55,14 +55,14 @@ where
     pub async fn create_link(
         &self,
         user_id: i32,
-        redirect_url: &String,
-        label: &String,
+        redirect_url: String,
+        label: String,
     ) -> Result<LinkId, LinkManagerError> {
         let link: Link = self
             .trx_factory
             .begin(async move |ctx| -> Result<Link, LinkManagerError> {
                 let link_id = self.persistence_repo.next_link_id(ctx.clone()).await?;
-                let link = Link::new(link_id, user_id, redirect_url.clone(), label.clone());
+                let link = Link::new(link_id, user_id, redirect_url, label);
                 self.persistence_repo
                     .save_link(link.clone(), ctx.clone())
                     .await?;
@@ -80,7 +80,7 @@ where
             .begin(async move |ctx| -> Result<Link, LinkManagerError> {
                 let mut existing_link = self
                     .persistence_repo
-                    .find_link_by_id(link_id.clone(), ctx.clone())
+                    .find_link_by_id(link_id, ctx.clone())
                     .await?
                     .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
 
@@ -99,7 +99,7 @@ where
     pub async fn get_link_views(&self, link_id: &LinkId) -> Result<i64, LinkManagerError> {
         let link = self
             .persistence_repo
-            .find_link_by_id(link_id.clone(), TrxContext::Empty)
+            .find_link_by_id(link_id, TrxContext::Empty)
             .await?
             .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
 

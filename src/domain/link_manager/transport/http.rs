@@ -85,7 +85,7 @@ pub async fn create_link_post_handler(
     Extension(middleware_user): Extension<MiddlewareUserResponse>,
     Json(payload): Json<CreateLinkRequest>, 
 ) -> Result<Json<LinkId>, StatusCode> {
-    match state.link_manager_service.create_link(middleware_user.user_id, &payload. redirected_url,  &payload.label).await{
+    match state.link_manager_service.create_link(middleware_user.user_id, payload. redirected_url,  payload.label).await{
         Ok(link_id) => 
             Ok(Json(link_id)),
         Err(_) => 

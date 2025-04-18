@@ -61,10 +61,7 @@ where
             .trx_factory
             .begin(async move |ctx| -> Result<i32, AuthError> {
                 let user = User::new(name, email, password);
-                let user_id = self
-                    .persistence_repo
-                    .save_user(user.clone(), ctx.clone())
-                    .await?;
+                let user_id = self.persistence_repo.save_user(user, ctx.clone()).await?;
 
                 Ok(user_id)
             })

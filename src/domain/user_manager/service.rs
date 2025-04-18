@@ -59,9 +59,7 @@ where
 
                 user.name = name;
 
-                self.persistence_repo
-                    .save_user(user.clone(), ctx.clone())
-                    .await?;
+                self.persistence_repo.save_user(user, ctx.clone()).await?;
 
                 Ok(())
             })
