@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO links (id, user_id, redirect_url, label, views, created_at, last_view)\n            VALUES ($1, $2, $3, $4, $5, $6, $7)\n            ON CONFLICT (id) DO UPDATE SET\n            redirect_url = EXCLUDED.redirect_url,\n            label = EXCLUDED.label,\n            views = EXCLUDED.views,\n            last_view = EXCLUDED.last_view\n            \n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "401407b9a86882c8bddd635a25f18f78a15bad3f8915860e97aee4a75ca6bce0"
+}

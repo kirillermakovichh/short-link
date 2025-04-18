@@ -1,3 +1,5 @@
+use std::env;
+
 use crate::{
     AppState,
     tools::jwt::{decode_token, is_valid},
@@ -27,7 +29,9 @@ pub async fn user_middleware(
         None => return (StatusCode::UNAUTHORIZED, "Unauthorized").into_response(),
     };
 
-    let token = match decode_token(cookie.value(), "secret") {
+    let secret_key = env::var("SECRET_JWT").expect("SECRET_JWT must be set");
+
+    let token = match decode_token(cookie.value(), &secret_key) {
         Ok(t) => t,
         Err(_) => return (StatusCode::UNAUTHORIZED, "Invalid token").into_response(),
     };

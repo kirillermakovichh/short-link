@@ -1,15 +1,12 @@
-use crate::AppState;
-use crate::domain::auth::service::AuthService;
-use crate::tools::jwt::generate_jwt;
-use crate::{
-    domain::auth::infra::persistence::AuthPersistenceRepo, tools::password_hash::hash_password,
-};
+use std::env;
 
-use axum::response::{IntoResponse, Response};
+use crate::AppState;
+use crate::tools::jwt::generate_jwt;
+use crate::tools::password_hash::hash_password;
+
 use axum::{Json, extract::State, http::StatusCode};
 use axum_extra::extract::cookie::{Cookie, CookieJar};
 
-use solar::trx_factory::SqlxTrxFactory;
 use utoipa::ToSchema;
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -58,11 +55,11 @@ pub async fn login_post_handler(
     Json(payload): Json<LoginRequest>,
 ) -> Result<(CookieJar, Json<LoginResponse>), (StatusCode, Json<ErrorResponse>)> {
     let hash_password = hash_password(&payload.password);
+    let secret_key = env::var("SECRET_JWT").expect("SECRET_JWT must be set");
 
     match state.auth_service.login(payload.email, hash_password).await {
         Ok(user) => {
-            // TODO: secret
-            let jwt = match generate_jwt(user.id, "secret") {
+            let jwt = match generate_jwt(user.id, &secret_key) {
                 Ok(token) => token,
                 Err(e) => {
                     let error_response = ErrorResponse {

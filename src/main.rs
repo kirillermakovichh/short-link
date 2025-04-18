@@ -1,7 +1,11 @@
+pub mod config;
+pub mod container;
 pub mod domain;
 pub mod tools;
 pub mod transport;
 
+use container::build_container;
+use dotenv::dotenv;
 use std::sync::Arc;
 
 use axum::{
@@ -23,52 +27,36 @@ use domain::{
         },
     },
 };
-use eyre::Context;
 use solar::trx_factory::SqlxTrxFactory;
 use transport::http::auth::user_middleware;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-#[tokio::main]
-async fn main() {
-    let pool = sqlx::PgPool::connect("postgres://postgres:password@localhost:5432/short-link")
-        .await
-        .expect("failed to connect to db");
-
-    let trx_factory = SqlxTrxFactory::new(pool);
-    sqlx::migrate!("./migrations")
-        .run(trx_factory.pool())
-        .await
-        .context("failed to run migrations")
-        .unwrap();
-
-    let auth_persistence_repo = AuthPersistenceRepo::new(trx_factory.clone());
-    let auth_service = Arc::new(AuthService::new(auth_persistence_repo, trx_factory.clone()));
-
-    let link_manager_persistence_repo = LinkManagerPersistenceRepo::new(trx_factory.clone());
-    let link_manager_service = Arc::new(LinkManagerService::new(
-        link_manager_persistence_repo,
-        trx_factory.clone(),
-    ));
-
-    let app_state = AppState {
-        auth_service,
-        link_manager_service,
-    };
-
-    let addr = "127.0.0.1:3000";
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("failed to bind to address");
-    println!("Server running on: {addr:?}");
-
-    axum::serve(listener, router(app_state)).await.unwrap();
-}
-
 #[derive(Clone)]
 pub struct AppState {
     auth_service: Arc<AuthService<AuthPersistenceRepo, SqlxTrxFactory>>,
     link_manager_service: Arc<LinkManagerService<LinkManagerPersistenceRepo, SqlxTrxFactory>>,
+}
+
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
+
+    let container = build_container().await;
+    let app_state = AppState {
+        auth_service: container.auth_service.clone(),
+        link_manager_service: container.link_manager_service.clone(),
+    };
+
+    let addr = container.server_address.clone();
+
+    let listener = tokio::net::TcpListener::bind(addr.clone())
+        .await
+        .expect("failed to bind to address");
+
+    println!("Server running on: {addr:?}");
+
+    axum::serve(listener, router(app_state)).await.unwrap();
 }
 
 #[derive(OpenApi)]
