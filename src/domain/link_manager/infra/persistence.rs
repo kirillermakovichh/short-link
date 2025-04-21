@@ -133,4 +133,28 @@ impl PersistenceRepo for LinkManagerPersistenceRepo {
 
         Ok(None)
     }
+
+    async fn delete_link(&self, link_id: LinkId, ctx: TrxContext) -> Result<(), PersistenceError> {
+        let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
+        let (trx, _) = extract_or_create_trx;
+        let mut trx = trx.lock().await;
+        let Some(trx) = trx.as_mut() else {
+            return Err(PersistenceError::InternalError(eyre::eyre!(
+                "failed to get sqlx transaction"
+            )));
+        };
+
+        sqlx::query!(
+            r#"
+            DELETE FROM links
+            WHERE id = $1
+            "#,
+            link_id.to_string()
+        )
+        .execute(&mut **trx)
+        .await
+        .context("failed to delete link")?;
+
+        Ok(())
+    }
 }

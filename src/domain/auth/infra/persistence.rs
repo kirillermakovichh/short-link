@@ -81,4 +81,33 @@ impl PersistenceRepo for AuthPersistenceRepo {
 
         return Ok(user);
     }
+
+    async fn get_user_by_email(
+        &self,
+        email: &str,
+        ctx: TrxContext,
+    ) -> Result<Option<User>, PersistenceError> {
+        let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
+        let (trx, _) = extract_or_create_trx;
+        let mut trx = trx.lock().await;
+        let Some(trx) = trx.as_mut() else {
+            return Err(PersistenceError::InternalError(eyre::eyre!(
+                "failed to get sqlx transaction"
+            )));
+        };
+
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT * from users
+            WHERE email = $1
+            "#,
+            email
+        )
+        .fetch_optional(&mut **trx)
+        .await
+        .context("failed to find user with email")?;
+
+        return Ok(user);
+    }
 }

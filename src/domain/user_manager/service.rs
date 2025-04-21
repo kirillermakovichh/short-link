@@ -1,6 +1,9 @@
+use chrono::Utc;
 use solar::trx_factory::{TrxContext, TrxFactory, TrxFactoryError};
 
 use crate::domain::auth::entity::user::User;
+
+use super::entity::user_no_password::UserNoPassword;
 
 #[derive(thiserror::Error, Debug)]
 pub enum PersistenceError {
@@ -58,6 +61,7 @@ where
                     .ok_or(UserManagerError::UserNotFound(user_id))?;
 
                 user.name = name;
+                user.updated_at = Utc::now();
 
                 self.persistence_repo.save_user(user, ctx.clone()).await?;
 
@@ -68,17 +72,13 @@ where
         Ok(())
     }
 
-    pub async fn get_user_info(&self, user_id: i32) -> Result<User, UserManagerError> {
+    pub async fn get_user_info(&self, user_id: i32) -> Result<UserNoPassword, UserManagerError> {
         let user = self
-            .trx_factory
-            .begin(async move |ctx| -> Result<User, UserManagerError> {
-                self.persistence_repo
-                    .get_user_by_id(user_id, ctx.clone())
-                    .await?
-                    .ok_or(UserManagerError::UserNotFound(user_id))
-            })
-            .await?;
+            .persistence_repo
+            .get_user_by_id(user_id, TrxContext::Empty)
+            .await?
+            .ok_or(UserManagerError::UserNotFound(user_id))?;
 
-        Ok(user)
+        Ok(UserNoPassword::new(user.id, user.name, user.email))
     }
 }

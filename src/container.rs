@@ -31,7 +31,8 @@ pub async fn build_container() -> Arc<Container> {
 
     let server_address = format!("{}:{}", config.server.host, config.server.port);
 
-    let pool = sqlx::PgPool::connect(&config.database.url)
+    println!("config.database.url: {}", config.database.url);
+    let pool = sqlx::PgPool::connect(&config.database.url.to_string())
         .await
         .expect("failed to connect to db");
 

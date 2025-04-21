@@ -20,6 +20,8 @@ pub trait PersistenceRepo: Send + Sync {
         link_id: &LinkId,
         ctx: TrxContext,
     ) -> Result<Option<Link>, PersistenceError>;
+
+    async fn delete_link(&self, link_id: LinkId, ctx: TrxContext) -> Result<(), PersistenceError>;
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -104,5 +106,31 @@ where
             .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
 
         Ok(link.views)
+    }
+
+    pub async fn delete_link(&self, link_id: LinkId, user_id: i32) -> Result<(), LinkManagerError> {
+        self.trx_factory
+            .begin(async move |ctx| -> Result<(), LinkManagerError> {
+                let link = self
+                    .persistence_repo
+                    .find_link_by_id(&link_id, TrxContext::Empty)
+                    .await?
+                    .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
+
+                if link.user_id != user_id {
+                    return Err(LinkManagerError::LinkNotOwnedByUser(
+                        link_id.clone(),
+                        user_id,
+                    ));
+                }
+
+                self.persistence_repo
+                    .delete_link(link_id, ctx.clone())
+                    .await?;
+                Ok(())
+            })
+            .await?;
+
+        Ok(())
     }
 }

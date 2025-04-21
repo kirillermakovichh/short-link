@@ -1,8 +1,8 @@
 use std::env;
 
-use crate::AppState;
 use crate::tools::jwt::generate_jwt;
 use crate::tools::password_hash::hash_password;
+use crate::{AppState, domain::auth::service::AuthError};
 
 use axum::{Json, extract::State, http::StatusCode};
 use axum_extra::extract::cookie::{Cookie, CookieJar};
@@ -47,6 +47,7 @@ pub struct RegisterResponse {
     responses(
         (status = 200, description = "OK", body = LoginResponse),
         (status = 401, description = "Unauthorized"),
+        (status = 500, description = "Internal Server Error"),
     ),
 )]
 pub async fn login_post_handler(
@@ -65,7 +66,7 @@ pub async fn login_post_handler(
                     let error_response = ErrorResponse {
                         message: format!("Failed to generate JWT: {}", e),
                     };
-                    return Err((StatusCode::BAD_REQUEST, Json(error_response)));
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(error_response)));
                 }
             };
 
@@ -87,7 +88,7 @@ pub async fn login_post_handler(
         }
         Err(error) => {
             let error_response = ErrorResponse {
-                message: error.to_string(), // or any message you want
+                message: error.to_string(),
             };
             let response = (StatusCode::UNAUTHORIZED, Json(error_response));
             Err(response)
@@ -104,12 +105,13 @@ pub async fn login_post_handler(
     responses(
         (status = 200, description = "OK", body = RegisterResponse),
         (status = 400, description = "Bad Request"),
+        (status = 500, description = "Internal Server Error"),
     ),
 )]
 pub async fn register_post_handler(
     State(state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
-) -> Result<Json<RegisterResponse>, StatusCode> {
+) -> Result<Json<RegisterResponse>, (StatusCode, Json<ErrorResponse>)> {
     let hash_password = hash_password(&payload.password);
 
     match state
@@ -118,6 +120,19 @@ pub async fn register_post_handler(
         .await
     {
         Ok(user_id) => Ok(Json(RegisterResponse { user_id })),
-        Err(_) => Err(StatusCode::BAD_REQUEST),
+        Err(AuthError::UserAlreadyExists) => {
+            let error_response = ErrorResponse {
+                message: "user with this email already exits".to_string(),
+            };
+            let response = (StatusCode::BAD_REQUEST, Json(error_response));
+            Err(response)
+        }
+        Err(error) => {
+            let error_response = ErrorResponse {
+                message: error.to_string(),
+            };
+            let response = (StatusCode::UNAUTHORIZED, Json(error_response));
+            Err(response)
+        }
     }
 }

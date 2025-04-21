@@ -3,7 +3,7 @@ use axum::{
 };
 use utoipa::ToSchema;
 
-use crate::{domain::{auth::entity::user::User,  user_manager::service::UserManagerError}, transport::http::auth::MiddlewareUserResponse, AppState};
+use crate::{domain::user_manager::{entity::user_no_password::UserNoPassword, service::UserManagerError}, transport::http::auth::MiddlewareUserResponse, AppState};
 
 /// Get user info
 #[utoipa::path(
@@ -12,23 +12,23 @@ use crate::{domain::{auth::entity::user::User,  user_manager::service::UserManag
     params(
         ("user_id" = i32, Path, description = "ID of the user")
     ),
-    tag = "short-link",
+    tag = "user",
     responses(
-        (status = 200, description = "OK", body = User),
+        (status = 200, description = "OK", body = UserNoPassword),
         (status = 404, description = "Not Found"),
         (status = 500, description = "Internal Server Error"),)
 )]
 pub async fn get_user_info_get_handler(
     State(state): State<AppState>,
     Path(user_id): Path<i32>,
-) -> Result<Json<User>, StatusCode> {
+) -> Result<Json<UserNoPassword>, StatusCode> {
     match state.user_manager_service.get_user_info(user_id).await{
         Ok(user) => 
-            Ok(Json(user)),
-        Err(UserManagerError::UserNotFound(_)) => 
+        Ok(Json(user)),
+        Err(UserManagerError::UserNotFound(_)) =>{ 
             Err(
                 StatusCode::NOT_FOUND,
-            ), 
+            ) }
         Err(_) => 
             Err(StatusCode::INTERNAL_SERVER_ERROR),
     }

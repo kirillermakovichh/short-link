@@ -93,22 +93,27 @@ pub async fn create_link_post_handler(
     }
 }
 
-// /// Delete task bla-bla-bla
-// #[utoipa::path(
-//     delete, 
-//     path = "/delete-task/{id}", 
-//     params (
-//         ("id" = usize, Path, description = "Task id")
-//     ),
-//     tag = "short-link",
-//     responses(
-//         (status = 200, description = "OK", body = bool),
-//         (status = 500, description = "Internal Server Error"),)
-// )]
-// pub async fn delete_task(Path(id): Path<usize>) -> impl IntoResponse {
-//     if id == 1 {
-//         (StatusCode::OK, Json(true)).into_response()
-//     } else{
-//         (StatusCode::NOT_FOUND, Json(false)).into_response()
-//     }
-// }
+/// Delete link
+#[utoipa::path(
+    delete, 
+    path = "/delete-link/{linkId}", 
+    params(
+        ("linkId" = String, Path, description = "ID of the link")
+    ),
+    tag = "short-link",
+    responses(
+        (status = 200, description = "OK", body = bool),
+        (status = 500, description = "Internal Server Error"),)
+)]
+pub async fn delete_link_delete_handler(
+    State(state): State<AppState>,
+    Extension(middleware_user): Extension<MiddlewareUserResponse>,
+    Path(link_id): Path<String>,
+) -> Result<Json<bool>, StatusCode> {
+    match state.link_manager_service.delete_link(LinkId::from_string(link_id), middleware_user.user_id).await{
+        Ok(_) => 
+            Ok(Json(true)),
+        Err(_) => 
+            Err(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }

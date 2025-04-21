@@ -20,6 +20,12 @@ pub trait PersistenceRepo: Send + Sync {
         password: String,
         ctx: TrxContext,
     ) -> Result<Option<User>, PersistenceError>;
+
+    async fn get_user_by_email(
+        &self,
+        email: &str,
+        ctx: TrxContext,
+    ) -> Result<Option<User>, PersistenceError>;
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -30,6 +36,8 @@ pub enum AuthError {
     PersistenceError(#[from] PersistenceError),
     #[error("incorrect email or password")]
     IncorrectEmailOrPassword,
+    #[error("user already exists")]
+    UserAlreadyExists,
     #[error("user not found: {0:?}")]
     UserNotFound(i32),
 }
@@ -60,6 +68,15 @@ where
         let user_id = self
             .trx_factory
             .begin(async move |ctx| -> Result<i32, AuthError> {
+                let existing_user = self
+                    .persistence_repo
+                    .get_user_by_email(&email, ctx.clone())
+                    .await?;
+
+                if existing_user.is_some() {
+                    return Err(AuthError::UserAlreadyExists);
+                }
+
                 let user = User::new(name, email, password);
                 let user_id = self.persistence_repo.save_user(user, ctx.clone()).await?;
 
@@ -72,14 +89,10 @@ where
 
     pub async fn login(&self, email: String, password: String) -> Result<User, AuthError> {
         let user = self
-            .trx_factory
-            .begin(async move |ctx| -> Result<User, AuthError> {
-                self.persistence_repo
-                    .login(email, password, ctx.clone())
-                    .await?
-                    .ok_or(AuthError::IncorrectEmailOrPassword)
-            })
-            .await?;
+            .persistence_repo
+            .login(email, password, TrxContext::Empty)
+            .await?
+            .ok_or(AuthError::IncorrectEmailOrPassword)?;
 
         Ok(user)
     }
