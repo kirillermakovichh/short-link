@@ -1,4 +1,5 @@
 use eyre::Context;
+use redis::aio::ConnectionManager;
 use solar::trx_factory::SqlxTrxFactory;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
@@ -16,6 +17,8 @@ use crate::{
     },
 };
 
+const LINK_CACHE_EXPIRATION_SEC: u64 = 3600;
+
 pub struct Container {
     pub config: ConfigSettings,
     pub pool: Pool<Postgres>,
@@ -29,9 +32,14 @@ pub struct Container {
 pub async fn build_container() -> Arc<Container> {
     let config = load_config().unwrap();
 
+    let redis_client =
+        redis::Client::open(config.redis.url.to_string()).expect("failed to connect to redis");
+    let redis_connection_manager = ConnectionManager::new(redis_client)
+        .await
+        .expect("failed to create connection manager");
+
     let server_address = format!("{}:{}", config.server.host, config.server.port);
 
-    println!("config.database.url: {}", config.database.url);
     let pool = sqlx::PgPool::connect(&config.database.url.to_string())
         .await
         .expect("failed to connect to db");
@@ -50,6 +58,8 @@ pub async fn build_container() -> Arc<Container> {
     let link_manager_service = Arc::new(LinkManagerService::new(
         link_manager_persistence_repo,
         trx_factory.clone(),
+        redis_connection_manager.clone(),
+        LINK_CACHE_EXPIRATION_SEC,
     ));
 
     let user_manager_persistence_repo = UserManagerPersistenceRepo::new(trx_factory.clone());

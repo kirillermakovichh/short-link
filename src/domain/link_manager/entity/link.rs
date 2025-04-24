@@ -50,11 +50,6 @@ impl Link {
         }
     }
 
-    pub fn increment_views(&mut self) {
-        self.views += 1;
-        self.last_view = chrono::Utc::now().into();
-    }
-
     pub fn from_parts(
         id: LinkId,
         user_id: i32,

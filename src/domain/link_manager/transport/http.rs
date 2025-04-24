@@ -8,9 +8,9 @@ use crate::{domain::link_manager::{entity::link::LinkId, service::LinkManagerErr
 /// View short link 
 #[utoipa::path(
     get, 
-    path = "/view/{linkId}", 
+    path = "/view/{link_id}", 
     params(
-        ("linkId" = String, Path, description = "ID of the link")
+        ("link_id" = String, Path, description = "ID of the link", example = "SVa-")
     ),
     tag = "short-link",
     responses(

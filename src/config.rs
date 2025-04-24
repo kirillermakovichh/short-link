@@ -5,6 +5,10 @@ use serde::Deserialize;
 pub struct DatabaseConfig {
     pub url: String,
 }
+#[derive(Debug, Deserialize)]
+pub struct RedisConfig {
+    pub url: String,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct ServerConfig {
@@ -15,6 +19,7 @@ pub struct ServerConfig {
 #[derive(Debug, Deserialize)]
 pub struct ConfigSettings {
     pub database: DatabaseConfig,
+    pub redis: RedisConfig,
     pub server: ServerConfig,
 }
 

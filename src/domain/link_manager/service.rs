@@ -1,3 +1,5 @@
+use redis::{AsyncCommands, RedisError, aio::ConnectionManager};
+use serde_json::Error;
 use solar::trx_factory::{TrxContext, TrxFactory, TrxFactoryError};
 
 use super::entity::link::{Link, LinkId};
@@ -13,6 +15,12 @@ pub enum PersistenceError {
 #[async_trait::async_trait]
 pub trait PersistenceRepo: Send + Sync {
     async fn save_link(&self, link: Link, ctx: TrxContext) -> Result<(), PersistenceError>;
+
+    async fn increment_link_views(
+        &self,
+        link_id: &LinkId,
+        ctx: TrxContext,
+    ) -> Result<(), PersistenceError>;
 
     async fn next_link_id(&self, ctx: TrxContext) -> Result<LinkId, PersistenceError>;
     async fn find_link_by_id(
@@ -33,13 +41,17 @@ pub enum LinkManagerError {
 
     #[error("link not found: {0}")]
     LinkNotFound(LinkId),
-    #[error("link not owned by user: {0}")]
+    #[error("link not owned by user: {0}, {1}")]
     LinkNotOwnedByUser(LinkId, i32),
-}
 
+    #[error("failed to deserialize: {0}")]
+    CacheError(Error),
+}
 pub struct LinkManagerService<P, T> {
     persistence_repo: P,
     trx_factory: T,
+    redis_client: ConnectionManager,
+    cache_expr_sec: u64,
 }
 
 impl<P, T> LinkManagerService<P, T>
@@ -47,10 +59,17 @@ where
     P: PersistenceRepo,
     T: TrxFactory,
 {
-    pub fn new(persistence_repo: P, trx_factory: T) -> Self {
+    pub fn new(
+        persistence_repo: P,
+        trx_factory: T,
+        redis_client: ConnectionManager,
+        cache_expr_sec: u64,
+    ) -> Self {
         Self {
             persistence_repo,
             trx_factory,
+            redis_client,
+            cache_expr_sec,
         }
     }
 
@@ -80,15 +99,10 @@ where
         let link = self
             .trx_factory
             .begin(async move |ctx| -> Result<Link, LinkManagerError> {
-                let mut existing_link = self
-                    .persistence_repo
-                    .find_link_by_id(link_id, ctx.clone())
-                    .await?
-                    .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
+                let existing_link = self.get_and_cache_link(link_id, ctx.clone()).await?;
 
-                existing_link.increment_views();
                 self.persistence_repo
-                    .save_link(existing_link.clone(), ctx.clone())
+                    .increment_link_views(link_id, ctx.clone())
                     .await?;
 
                 Ok(existing_link)
@@ -96,6 +110,39 @@ where
             .await?;
 
         Ok(link)
+    }
+
+    async fn get_and_cache_link(
+        &self,
+        link_id: &LinkId,
+        ctx: TrxContext,
+    ) -> Result<Link, LinkManagerError> {
+        let mut r = self.redis_client.clone();
+        let string_link: Result<String, RedisError> = r.get(link_id.to_string()).await;
+
+        if let Ok(s) = string_link {
+            let link = serde_json::from_str(&s).map_err(|e| LinkManagerError::CacheError(e))?;
+
+            return Ok(link);
+        } else {
+            let link = self
+                .persistence_repo
+                .find_link_by_id(link_id, ctx.clone())
+                .await?
+                .ok_or(LinkManagerError::LinkNotFound(link_id.clone()))?;
+
+            if let Ok(serialized) = serde_json::to_string(&link) {
+                let mut r_clone = self.redis_client.clone();
+                let key = link_id.to_string();
+                let expire = self.cache_expr_sec;
+
+                tokio::spawn(async move {
+                    let _: Result<(), RedisError> = r_clone.set_ex(key, serialized, expire).await;
+                });
+            }
+
+            Ok(link)
+        }
     }
 
     pub async fn get_link_views(&self, link_id: &LinkId) -> Result<i64, LinkManagerError> {

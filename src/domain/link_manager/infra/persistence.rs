@@ -157,4 +157,33 @@ impl PersistenceRepo for LinkManagerPersistenceRepo {
 
         Ok(())
     }
+
+    async fn increment_link_views(
+        &self,
+        link_id: &LinkId,
+        ctx: TrxContext,
+    ) -> Result<(), PersistenceError> {
+        let extract_or_create_trx = self.trx_factory.extract_or_create_trx(ctx).await?;
+        let (trx, _) = extract_or_create_trx;
+        let mut trx = trx.lock().await;
+        let Some(trx) = trx.as_mut() else {
+            return Err(PersistenceError::InternalError(eyre::eyre!(
+                "failed to get sqlx transaction"
+            )));
+        };
+
+        sqlx::query!(
+            r#"
+            UPDATE links
+            SET views = views + 1, last_view = now()
+            WHERE id = $1
+            "#,
+            link_id.to_string()
+        )
+        .execute(&mut **trx)
+        .await
+        .context("failed to increment views")?;
+
+        Ok(())
+    }
 }

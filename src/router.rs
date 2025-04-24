@@ -52,7 +52,7 @@ pub fn build_router(app_state: AppState) -> Router {
                 .route_layer(from_fn_with_state(app_state.clone(), user_middleware)),
         )
         .route(
-            "/view/{link-id}",
+            "/view/{link_id}",
             get(view_link_get_handler)
                 .route_layer(from_fn_with_state(app_state.clone(), user_middleware)),
         )
